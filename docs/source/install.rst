@@ -65,7 +65,7 @@ Installation for development
 
 ::
 
-    (base)$ conda create -n tomocupy -c conda-forge cupy scikit-build numexpr opencv tifffile h5py cmake ninja pywavelets python=3.10
+    (base)$ conda create -n tomocupy -c conda-forge cupy scikit-build numexpr opencv tifffile h5py cmake ninja swig scipy pywavelets python=3.10
 
 
 .. warning:: Conda has a built-in mechanism to determine and install the latest version of cudatoolkit supported by your driver. However, if for any reason you need to force-install a particular CUDA version (say 11.0), you can do:
@@ -89,7 +89,34 @@ Installation for development
     (tomocupy)$ cd -
 
 
-6. Make sure that the path to nvcc compiler is set (or set it by e.g. ``export CUDACXX=/local/cuda-11.7/bin/nvcc``) and install tomocupy
+6. Make sure ``nvcc`` is on ``PATH``:
+
+::
+
+    (tomocupy)$ which nvcc
+    (tomocupy)$ nvcc --version
+
+If ``nvcc`` is not found, point at a CUDA toolkit install. Two common setups:
+
+- System CUDA toolkit at e.g. ``/usr/local/cuda-12.1/``:
+
+::
+
+    (tomocupy)$ export CUDAHOME=/usr/local/cuda-12.1
+    (tomocupy)$ export CUDA_PATH=$CUDAHOME
+    (tomocupy)$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDAHOME/lib64
+    (tomocupy)$ export PATH=$PATH:$CUDAHOME/bin
+
+- NVIDIA HPC SDK loaded via environment modules:
+
+::
+
+    (tomocupy)$ module use /local/nvidia/hpc_sdk/modulefiles
+    (tomocupy)$ module add nvhpc-hpcx-cuda13/26.1
+
+Add the chosen lines to ``~/.bashrc`` to make the setting persistent across logins.
+
+7. Install tomocupy
 
 ::
 
@@ -99,6 +126,9 @@ Installation for development
 
 .. note::
     ``cupy`` must be installed separately via conda (see Step 3) as it is CUDA-version specific and is not declared as a pip dependency.
+
+.. note::
+    The CUDA toolkit (``nvcc``) major version does not need to match ``cupy``'s runtime CUDA version exactly — tomocupy's CUDA kernels are simple enough that minor mismatches (e.g. ``nvcc`` 12.x compiling against a 13.x runtime) typically work. If the build succeeds but the kernels fail at runtime, align the toolkit and runtime to the same major version.
 
 ===================================
 Additional instructions for Windows
@@ -123,6 +153,34 @@ Run the following to check all functionality
 
     (tomocupy)$ cd tests; bash test_all.sh
 
+
+===============
+Troubleshooting
+===============
+
+**Build fails with** ``OSError: [Errno 39] Directory not empty: '_cmake_test_compile/build/CMakeFiles/<version>'``
+
+This is a known race in scikit-build's ``cleanup_test()`` and ``shutil.rmtree`` on the test compile directory. It can happen on the very first ``pip install .`` of a fresh install (not just on retries), and is independent of the Python version. Workaround: clean the partially-written build artifacts and retry. The retry succeeds.
+
+::
+
+    (tomocupy)$ cd tomocupy
+    (tomocupy)$ rm -rf _cmake_test_compile _skbuild build *.egg-info
+    (tomocupy)$ pip install .
+
+**Build fails with** ``CMake Error ... No CMAKE_CUDA_COMPILER could be found``
+
+``nvcc`` is not on ``PATH``. Re-do Step 6 of "Installation for development" (verify with ``which nvcc``) and retry.
+
+**Conda solver picks an incompatible CUDA version**
+
+If your driver supports e.g. CUDA 12.x but conda installs ``cupy`` against a newer cudart, pin the version explicitly:
+
+::
+
+    (base)$ conda create -n tomocupy -c conda-forge cupy scikit-build numexpr opencv tifffile h5py cmake ninja pywavelets cuda-version=12.9 python=3.10
+
+Match the ``cuda-version`` value to what ``nvidia-smi`` reports as the maximum supported.
 
 Update
 ======

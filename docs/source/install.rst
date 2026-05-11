@@ -158,15 +158,30 @@ Run the following to check all functionality
 Troubleshooting
 ===============
 
-**Build fails with** ``OSError: [Errno 39] Directory not empty: '_cmake_test_compile/build/CMakeFiles/<version>'``
+**Build fails with** ``OSError: [Errno 39] Directory not empty: 'CMakeFiles'`` **or** ``OSError: [Errno 16] Device or resource busy: '.nfsXXXXXXXX'``
 
-This is a known race in scikit-build's ``cleanup_test()`` and ``shutil.rmtree`` on the test compile directory. It can happen on the very first ``pip install .`` of a fresh install (not just on retries), and is independent of the Python version. Workaround: clean the partially-written build artifacts and retry. The retry succeeds.
+This happens when the source tree is on an **NFS-mounted filesystem** (typical for shared cluster home directories such as ``/home/beams/...`` at APS). scikit-build's ``cleanup_test()`` calls ``shutil.rmtree`` on the test-compile directory while the just-finished CMake test process still has open file handles. NFS does not delete files that are still held open; instead it renames them to ``.nfsXXXXXXXX`` ("silly rename"), which makes ``rmtree`` fail because the directory is "not empty" or the silly-rename file is "busy".
+
+The first ``pip install .`` of a fresh install almost always hits this. The retry succeeds because the file handles from the failed first attempt have closed by the time you re-run, so ``rm -rf`` can fully clear the directory and the second build's cleanup finds it empty.
+
+Workaround (always works):
 
 ::
 
     (tomocupy)$ cd tomocupy
     (tomocupy)$ rm -rf _cmake_test_compile _skbuild build *.egg-info
     (tomocupy)$ pip install .
+
+Permanent alternative — build on a local (non-NFS) filesystem such as ``/tmp`` or ``/local``:
+
+::
+
+    (tomocupy)$ cp -r ~/path/to/tomocupy /tmp/tomocupy-build
+    (tomocupy)$ cd /tmp/tomocupy-build
+    (tomocupy)$ pip install .
+    (tomocupy)$ rm -rf /tmp/tomocupy-build
+
+The installed package lands in your conda env (which is itself on NFS, but install-time writes don't trigger silly-rename because nothing else has those files open).
 
 **Build fails with** ``CMake Error ... No CMAKE_CUDA_COMPILER could be found``
 

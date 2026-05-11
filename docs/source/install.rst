@@ -118,11 +118,14 @@ Add the chosen lines to ``~/.bashrc`` to make the setting persistent across logi
 
 7. Install tomocupy
 
+Build on a local (non-NFS) filesystem such as ``/tmp`` or ``/local``. This avoids an NFS silly-rename race in scikit-build's test-compile cleanup that breaks the build when the source tree lives on a shared / NFS-mounted home directory (typical on cluster machines such as APS beamline workstations). The installed package lands in your conda env regardless of where the build happened.
+
 ::
 
-    (tomocupy)$ git clone https://github.com/tomography/tomocupy
-    (tomocupy)$ cd tomocupy
+    (tomocupy)$ git clone https://github.com/tomography/tomocupy /tmp/tomocupy-build
+    (tomocupy)$ cd /tmp/tomocupy-build
     (tomocupy)$ pip install .
+    (tomocupy)$ cd ~ && rm -rf /tmp/tomocupy-build
 
 .. note::
     ``cupy`` must be installed separately via conda (see Step 3) as it is CUDA-version specific and is not declared as a pip dependency.

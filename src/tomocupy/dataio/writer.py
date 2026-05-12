@@ -109,8 +109,15 @@ class Writer():
                 args.file_name)+'_rec/'+os.path.basename(args.file_name)[:-3]+'_rec'
         else:
             fnameout = str(args.out_path_name)
-        if not os.path.exists(fnameout):
-            os.makedirs(fnameout)
+        if args.save_format in ('h5', 'h5nolinks', 'h5sino'):
+            # output is a .h5 file (with a sibling _parts/ dir for h5/h5sino);
+            # only the parent directory is needed
+            parent_dir = os.path.dirname(fnameout)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir)
+        else:
+            if not os.path.exists(fnameout):
+                os.makedirs(fnameout)
 
         if (args.clear_folder == 'True'):
             log.info('Clearing the output folder')

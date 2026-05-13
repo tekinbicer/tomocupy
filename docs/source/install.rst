@@ -190,6 +190,37 @@ The installed package lands in your conda env (which is itself on NFS, but insta
 
 ``nvcc`` is not on ``PATH``. Re-do Step 6 of "Installation for development" (verify with ``which nvcc``) and retry.
 
+**Build fails because pip cannot reach PyPI (private/air-gapped network)**
+
+On beamline workstations, HPC login nodes, or other machines without direct internet access, ``pip install .`` fails during the build-dependency fetch step with a timeout or connection error::
+
+    ReadTimeoutError: HTTPSConnectionPool(host='pypi.org', port=443): Read timed out.
+
+Install the build dependencies into the conda env first (only needed once), then build with ``--no-build-isolation`` so pip uses what is already installed instead of fetching from PyPI:
+
+::
+
+    (tomocupy)$ conda install -n tomocupy -c conda-forge scikit-build cmake ninja swig
+    (tomocupy)$ pip install --no-build-isolation .
+
+**Runtime crash: "incomplete type __nv_fp8_e8m0" errors from cupy**
+
+``cupy 14`` bundles CCCL headers that reference ``__nv_fp8_e8m0``, a type introduced in CUDA 12.8. If cupy discovers a system CUDA toolkit older than 12.8 at runtime, every kernel compilation (e.g. inside ``find_center_vo``) fails with a cascade of errors like::
+
+    error: incomplete type "__nv_fp8_e8m0" is not allowed
+
+This happens when ``CUDA_PATH``, ``CUDAHOME``, or ``nvcc`` on ``PATH`` points cupy to the system toolkit instead of its own bundled headers. The fix is to downgrade cupy to a version compatible with your system CUDA:
+
+::
+
+    (base)$ conda install -n tomocupy -c conda-forge cupy=12 cuda-version=<your_system_cuda>
+
+For example, for a system with CUDA 12.1::
+
+    (base)$ conda install -n tomocupy -c conda-forge cupy=12 cuda-version=12.1
+
+To find your system CUDA version run ``nvcc --version`` or ``nvidia-smi``.
+
 **Conda solver picks an incompatible CUDA version**
 
 If your driver supports e.g. CUDA 12.x but conda installs ``cupy`` against a newer cudart, pin the version explicitly:

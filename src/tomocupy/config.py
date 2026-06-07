@@ -454,7 +454,7 @@ SECTIONS['output'] ={
         'choices': ['float32', 'float16'],
         'help': "Data type used for reconstruction. Note float16 works with power of 2 sizes.", },
     'save-format': {
-        'default': 'tiff',
+        'default': 'h5nolinks',
         'type': str,
         'help': "Output format",
         'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},

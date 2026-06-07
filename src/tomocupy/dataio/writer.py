@@ -126,12 +126,6 @@ class Writer():
         if args.save_format == 'tiff':
             # if save results as tiff
             fnameout += '/recon'
-            # saving command line for reconstruction
-            fname_rec_line = os.path.dirname(fnameout)+'/rec_line.txt'
-            rec_line = sys.argv
-            rec_line[0] = os.path.basename(rec_line[0])
-            with open(fname_rec_line, 'w') as f:
-                f.write(' '.join(rec_line))
 
         elif args.save_format == 'h5':
             # if save results as h5 virtual datasets
@@ -231,10 +225,26 @@ class Writer():
                  clean_zarr(self.zarr_output_path)
             log.info(f'Zarr dataset will be created at {fnameout}')
             log.info(f"ZARR chunk structure: {args.zarr_chunk}")
-              
+
+        # CLI invocation log, sibling to the output
+        if args.save_format == 'tiff':
+            rec_line_path = os.path.dirname(fnameout) + '/rec_line.txt'
+        elif args.save_format in ('h5', 'h5nolinks', 'h5sino'):
+            rec_line_path = fnameout[:-3] + '.rec_line.txt'
+        elif args.save_format == 'zarr':
+            rec_line_path = fnameout[:-5] + '.rec_line.txt'
+        self._save_rec_line(rec_line_path)
+
         params.fnameout = fnameout
         log.info(f'Output: {fnameout}')
-        
+
+
+    def _save_rec_line(self, path):
+        rec_line = sys.argv
+        rec_line[0] = os.path.basename(rec_line[0])
+        with open(path, 'w') as f:
+            f.write(' '.join(rec_line))
+
 
     def write_meta(self, rec_virtual):
 

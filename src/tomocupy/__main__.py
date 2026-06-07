@@ -41,7 +41,6 @@
 import sys
 import time
 import argparse
-import time
 import os
 from pathlib import Path
 from datetime import datetime
@@ -74,57 +73,83 @@ def run_status(args):
     config.log_values(args)
 
 
+def _find_center(cl_reader):
+    clrotthandle = FindCenter(cl_reader)
+    args.rotation_axis = clrotthandle.find_center()
+    params.center = args.rotation_axis
+    params.centeri = args.rotation_axis
+    log.warning(f'set rotation axis {args.rotation_axis}')
+
+
+def _find_center_ai(cl_reader, img_cache, center_of_rotation_cache):
+    clrotthandle = FindCenter(cl_reader)
+    args.rotation_axis = clrotthandle.find_center_ai(args, img_cache, center_of_rotation_cache, params.fnameout[:-6])
+    params.center = args.rotation_axis
+    log.warning(f'set rotation axis {args.rotation_axis}')
+
+
+def _check_use_ai():
+    if args.rotation_axis_auto != 'auto' or args.rotation_axis_method != 'ai':
+        return False
+    try:
+        import torch  
+        return True
+    except ImportError:
+        log.warning('torch is not installed — skipping AI center search, falling back to vo method')
+        args.rotation_axis_method = 'vo'
+        return False
+
+
 def run_rec(args, cl_reader, cl_writer):
-    file_name = Path(args.file_name)
-    if not file_name.is_file():
+    if not Path(args.file_name).is_file():
         log.error("File Name does not exist: %s" % args.file_name)
         exit()
 
     t = time.time()
-    # set the default parameters
     args.retrieve_phase_method = 'none'
     args.rotate_proj_angle = 0
     args.lamino_angle = 0
-    # rotation axis search
-    if args.rotation_axis_auto == 'auto':
-        clrotthandle = FindCenter(cl_reader)
-        args.rotation_axis = clrotthandle.find_center()
-        params.center = args.rotation_axis
-        params.centeri = args.rotation_axis
-        log.warning(f'set rotaion  axis {args.rotation_axis}')
 
-    # create reconstruction object and run reconstruction
-    clpthandle = GPURec(cl_reader, cl_writer)
+    use_ai = _check_use_ai()
+    if args.rotation_axis_auto == 'auto' and not use_ai:
+        _find_center(cl_reader)
+
+    cache_to_infer = args.reconstruction_type == 'try' and use_ai
+    clpthandle = GPURec(cl_reader, cl_writer, cache_to_infer=cache_to_infer)
 
     if args.reconstruction_type == 'full':
-
         clpthandle.recon_all()
-    if args.reconstruction_type == 'try':
-        clpthandle.recon_try()
-    rec_time = (time.time()-t)
+    elif args.reconstruction_type == 'try':
+        if use_ai:
+            img_cache, center_of_rotation_cache, _ = clpthandle.recon_try()
+            _find_center_ai(cl_reader, img_cache, center_of_rotation_cache)
+        else:
+            clpthandle.recon_try()
 
-    log.warning(f'Reconstruction time {rec_time:.1e}s')
+    log.warning(f'Reconstruction time {time.time()-t:.1e}s')
 
 
 def run_recsteps(args, cl_reader, cl_writer):
-    file_name = Path(args.file_name)
-    if not file_name.is_file():
+    if not Path(args.file_name).is_file():
         log.error("File Name does not exist: %s" % args.file_name)
         exit()
+
     t = time.time()
 
-    if args.rotation_axis_auto == 'auto':
-        clrotthandle = FindCenter(cl_reader)
-        args.rotation_axis = clrotthandle.find_center()
-        params.center = args.rotation_axis
-        params.centeri = args.rotation_axis
-        log.warning(f'set rotaion  axis {args.rotation_axis}')
+    use_ai = _check_use_ai()
+    if args.rotation_axis_auto == 'auto' and not use_ai:
+        _find_center(cl_reader)
 
-    clpthandle = GPURecSteps(cl_reader, cl_writer)
-    # does all preprocessing for both full and try reconstructions
-    clpthandle.recon_steps_all()
+    cache_to_infer = use_ai
+    clpthandle = GPURecSteps(cl_reader, cl_writer, cache_to_infer=cache_to_infer)
 
-    log.warning(f'Reconstruction time {(time.time()-t):.01f}s')
+    if use_ai:
+        img_cache, center_of_rotation_cache, _ = clpthandle.recon_steps_all()
+        _find_center_ai(cl_reader, img_cache, center_of_rotation_cache)
+    else:
+        clpthandle.recon_steps_all()
+
+    log.warning(f'Reconstruction time {time.time()-t:.1f}s')
 
 
 def main():

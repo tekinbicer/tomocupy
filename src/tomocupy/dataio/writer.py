@@ -230,9 +230,9 @@ class Writer():
         if args.save_format == 'tiff':
             rec_line_path = os.path.dirname(fnameout) + '/rec_line.txt'
         elif args.save_format in ('h5', 'h5nolinks', 'h5sino'):
-            rec_line_path = fnameout[:-3] + '.rec_line.txt'
+            rec_line_path = fnameout[:-3] + '_line.txt'
         elif args.save_format == 'zarr':
-            rec_line_path = fnameout[:-5] + '.rec_line.txt'
+            rec_line_path = fnameout[:-5] + '_line.txt'
         self._save_rec_line(rec_line_path)
 
         params.fnameout = fnameout

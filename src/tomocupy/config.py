@@ -857,8 +857,7 @@ def update_hdf_process(fname, args=None, sections=None):
                     if args and sections and section in sections and hasattr(args, name.replace('-', '_')):
                         value = getattr(args, name.replace('-', '_'))
                         if isinstance(value, list):
-                            # print(type(value), value)
-                            value = ', '.join(value)
+                            value = ', '.join(str(v) for v in value)
                     else:
                         value = opts['default'] if opts['default'] is not None else ''
 

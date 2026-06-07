@@ -243,6 +243,32 @@ If your driver supports e.g. CUDA 12.x but conda installs ``cupy`` against a new
 
 Match the ``cuda-version`` value to what ``nvidia-smi`` reports as the maximum supported.
 
+**Runtime crash: HDF5 BlockingIOError when writing output on NFS**
+
+When the reconstruction output (``--save-format h5``, ``h5nolinks``, or ``h5sino``, including the default ``h5nolinks``) is written to an NFS-mounted directory such as ``/data2/2BM/...``, the writer can fail with::
+
+    BlockingIOError: [Errno 11] Unable to synchronously create file
+      (unable to lock file, errno = 11, error message = 'Resource temporarily unavailable')
+
+HDF5 ≥ 1.10 acquires a POSIX file lock before truncating or creating a file, and NFS does not reliably support that locking primitive. The failure rate is highest when an output file from a previous run already exists at the same path — HDF5 must lock it to truncate before re-creating.
+
+Fix: tell HDF5 to skip file locking by setting an environment variable in the ``tomocupy`` conda env:
+
+::
+
+    (tomocupy)$ mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+    (tomocupy)$ echo 'export HDF5_USE_FILE_LOCKING=FALSE' \
+                > $CONDA_PREFIX/etc/conda/activate.d/hdf5_no_lock.sh
+    (tomocupy)$ conda deactivate && conda activate tomocupy
+    (tomocupy)$ echo $HDF5_USE_FILE_LOCKING    # should print: FALSE
+
+Every ``conda activate tomocupy`` shell — including the one tomocupy runs in — will now have the variable set. The setting is the documented HDF5 remedy for NFS; it is safe as long as you are not doing concurrent writes to the same file from multiple processes.
+
+For a one-off shell without changing the env, just export it directly before running::
+
+    (tomocupy)$ export HDF5_USE_FILE_LOCKING=FALSE
+    (tomocupy)$ tomocupy recon_steps ...
+
 Update
 ======
 

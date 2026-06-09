@@ -60,6 +60,11 @@ __docformat__ = 'restructuredtext en'
 
 log = logging.getLogger(__name__)
 
+def list_of_ints(arg):
+    if ',' in arg:
+        return [int(val) for val in (arg.split(','))]
+    else:
+        return [int(arg)]
 
 def default_parameter(func, param):
     """Get the default value for a function parameter.
@@ -402,7 +407,7 @@ SECTIONS['reconstruction'] = {
         'default': 'sift',
         'type': str,
         'help': "Method for automatic rotation search.",
-        'choices': ['sift', 'vo']},
+        'choices': ['sift', 'vo','ai']},
     'find-center-start-row': {
         'type': int,
         'default': 0,
@@ -454,7 +459,7 @@ SECTIONS['output'] ={
         'choices': ['float32', 'float16'],
         'help': "Data type used for reconstruction. Note float16 works with power of 2 sizes.", },
     'save-format': {
-        'default': 'tiff',
+        'default': 'h5nolinks',
         'type': str,
         'help': "Output format",
         'choices': ['tiff', 'h5', 'h5sino', 'h5nolinks', 'zarr']},
@@ -598,14 +603,73 @@ SECTIONS['beam-hardening'] = {
 
 }
 
+SECTIONS['inference'] = {
+    'infer-seed-number': {
+        'default': 10,
+        'type': int,
+        'help': "Seed number for random number generator"
+    },
+    'infer-input-data-type': {
+        'default': 'raw',
+        'type': str,
+        'help': "Center of rotation algorithm input",
+        'choices': ['raw','try']
+    },
+    'infer-use-8bits': {
+        'default': True,
+        'help': "When set requantize the pixel values with 8 bits",
+        'action': 'store_true'
+    },
+    'infer-downsample-factor': {
+        'default': [1],
+        'type': list_of_ints,
+        'help': "Downsample factor applied to the try reconstruction slices"
+    },
+    'infer-num-windows': {
+        'default': [3],
+        'type': list_of_ints,
+        'help': "Number of windows to aggregate try recon image features"
+    },
+    'infer-window-size': {
+        'default': [518],
+        'type': list_of_ints,
+        'help': "Size of each square window to aggregate try recon image features"
+    },
+    'infer-model-path': {
+        'default': 'none',
+        'type': str,
+        'help': "Path to the trained model weights"
+    },
+    'infer-input-dir': {
+        'default': 'none',
+        'type': str,
+        'help': 'Input directory if tiff images are the direct inputs'
+    },
+    'infer-save-intermediate-data': {
+        'default': False,
+        'help': 'When set save the per-slice model predictions',
+        'action': 'store_true'
+    },
+    'infer-batch-list': {
+        'default': None,
+        'type': str,
+        'help': 'When supplied txt file process a list of input directories',
+    },
+    'infer-out-dir-name': {
+        'default': None,
+        'type': Path,
+        'help': "Directory for output batches",
+        'metavar': 'PATH'
+    },
+}
 
 RECON_PARAMS = ('file-reading', 'remove-stripe',
-                'reconstruction', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-types', 'beam-hardening', 'output')
+                'reconstruction', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-types', 'beam-hardening', 'inference', 'output')
 RECON_STEPS_PARAMS = ('file-reading', 'remove-stripe', 'reconstruction',
-                      'retrieve-phase', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-steps-types', 'rotate-proj', 'beam-hardening', 'output')
+                      'retrieve-phase', 'fw', 'ti', 'vo-all', 'lamino', 'reconstruction-steps-types', 'rotate-proj', 'beam-hardening', 'inference', 'output')
 
 NICE_NAMES = ('General', 'File reading', 'Remove stripe',
-              'Remove stripe FW', 'Remove stripe Titarenko', 'Remove stripe Vo', 'Retrieve phase', 'Reconstruction')
+              'Remove stripe FW', 'Remove stripe Titarenko', 'Remove stripe Vo', 'Retrieve phase', 'Reconstruction','Inference')
 
 
 def get_config_name():
@@ -793,8 +857,7 @@ def update_hdf_process(fname, args=None, sections=None):
                     if args and sections and section in sections and hasattr(args, name.replace('-', '_')):
                         value = getattr(args, name.replace('-', '_'))
                         if isinstance(value, list):
-                            # print(type(value), value)
-                            value = ', '.join(value)
+                            value = ', '.join(str(v) for v in value)
                     else:
                         value = opts['default'] if opts['default'] is not None else ''
 

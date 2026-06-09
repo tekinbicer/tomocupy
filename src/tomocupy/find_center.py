@@ -51,6 +51,7 @@ import numpy as np
 import signal
 import cv2
 
+
 __author__ = "Viktor Nikitin"
 __copyright__ = "Copyright (c) 2022, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
@@ -81,6 +82,10 @@ class FindCenter():
         elif args.rotation_axis_method == 'vo':
             center = self.find_center_vo()
         return (center*2**args.binning).astype('float32')
+
+    def find_center_ai(self, args, img_cache, center_of_rotation_cache, out_dir):
+        from tomocupy.ai.inference import inference_pipeline
+        return inference_pipeline(args, img_cache, center_of_rotation_cache, out_dir)
 
     def read_data_try(self, data_queue, id_slice):
 

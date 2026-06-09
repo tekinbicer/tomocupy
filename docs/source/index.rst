@@ -44,6 +44,7 @@ Content
    :maxdepth: 2
 
    install
+   container
    usage
    performance
    tested_gpus

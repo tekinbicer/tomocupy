@@ -1,3 +1,64 @@
 [build-system]
-requires = ["scikit-build>=0.17", "cmake>=3.18", "ninja"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10", "swig"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "tomocupy"
+version = "1.1.0"
+description = "GPU-based reconstruction of tomographic and laminographic data"
+readme = "README.rst"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Viktor Nikitin" },
+]
+requires-python = ">=3.9"
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "opencv-python",
+    "h5py",
+    "numexpr",
+    "numpy",
+    "scipy",
+    "pywavelets",
+    "tifffile",
+    "zarr<3",
+    "numcodecs<0.16",
+]
+# zarr<3 + numcodecs<0.16: the code uses zarr v2 API and `from numcodecs import Blosc`.
+# zarr 3.x and numcodecs 0.16+ both removed those.
+# `beamhardening` is an optional runtime extra; it is not on PyPI and is only loaded
+# when `--beam-hardening-method` is set. Install from source if you need it.
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=5,<6",
+    "sphinx_rtd_theme>=1,<2",
+    "sphinxcontrib-bibtex>=2,<3",
+    "nbsphinx",
+    "pandoc",
+    "jupyter",
+]
+
+[project.scripts]
+tomocupy = "tomocupy.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/tomography/tomocupy"
+Documentation = "https://tomocupy.readthedocs.io/en/latest/"
+Repository = "https://github.com/tomography/tomocupy"
+
+# cupy and the CUDA toolkit are intentionally NOT listed as dependencies:
+# they are supplied by conda or a system CUDA install. Install separately, e.g.
+# `uv pip install "cupy-cuda12x"`.
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["src/tomocupy"]
+cmake.version = ">=3.18"
+cmake.build-type = "Release"

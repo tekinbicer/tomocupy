@@ -1,3 +1,7 @@
+# Date: 2026.06.11
+# Author: Tekin Bicer 
+# Email: tbicer@anl.gov
+
 ARG CUDA_VERSION=12.4.1
 ARG UBUNTU_VERSION=22.04
 ARG PYTHON_VERSION=3.11

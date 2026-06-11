@@ -163,3 +163,4 @@ script
 *.tiff
 *.npy
 cfunc_*.py
+.omo

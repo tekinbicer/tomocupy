@@ -48,8 +48,8 @@ Run
 ---
 
 The image's entrypoint is the ``tomocupy`` command and its working directory
-is ``/data``. Mount the directory that contains your ``.h5`` files into
-``/data`` and pass any ``tomocupy`` arguments after the image name.
+is ``/input``. Mount the directory that contains your ``.h5`` files into
+``/input`` and pass any ``tomocupy`` arguments after the image name.
 
 Show the CLI help::
 
@@ -58,27 +58,41 @@ Show the CLI help::
 Reconstruct a dataset (full reconstruction with FBP, for example)::
 
     docker run --rm --gpus all \
-        -v /path/to/host/data:/data \
+        --user "$(id -u):$(id -g)" \
+        -e HOME=/tmp \
+        -v /path/to/host/input:/input \
+        -v /path/to/host/output:/output \
         tomocupy:latest recon \
-            --file-name /data/sample.h5 \
-            --reconstruction-type full \
-            --rotation-axis 1024
+        --file-name /input/sample.h5  \
+        --out-path-name /output/rec \
+        --reconstruction-type full \
+        --rotation-axis-auto auto \
+        --save-format tiff
 
 Select a specific GPU and limit shared memory if needed::
 
     docker run --rm --gpus '"device=0"' --shm-size=8g \
-        -v /path/to/host/data:/data \
+        --user "$(id -u):$(id -g)" \
+        -e HOME=/tmp \
+        -v /path/to/host/input:/input \
+        -v /path/to/host/output:/output \
         tomocupy:latest recon_steps \
-            --file-name /data/sample.h5 \
-            --reconstruction-type full
+        --file-name /input/sample.h5  \
+        --out-path-name /output/rec \
+        --reconstruction-type full \
+        --rotation-axis-auto auto \
+        --save-format tiff
 
 Reconstructed output is written next to the input file by default, so it will
-appear under ``/path/to/host/data`` on the host through the bind mount.
+appear under ``/path/to/host/output`` on the host through the bind mount.
 
 To get an interactive shell inside the image (for debugging or running other
 subcommands), override the entrypoint::
 
     docker run --rm -it --gpus all \
-        -v /path/to/host/data:/data \
+        --user "$(id -u):$(id -g)" \
+        -e HOME=/tmp \
+        -v /path/to/host/input:/input \
+        -v /path/to/host/output:/output \
         --entrypoint bash tomocupy:latest
 

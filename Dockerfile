@@ -46,7 +46,7 @@ COPY pyproject.toml VERSION README.rst LICENSE CMakeLists.txt ./
 COPY src/ ./src/
 
 RUN uv pip install --python "${VIRTUAL_ENV}/bin/python" \
-        "${CUPY_PACKAGE}" \
+        "${CUPY_PACKAGE}[ctk]" \
         . \
     && find "${VIRTUAL_ENV}" -name '__pycache__' -type d -prune -exec rm -rf {} +
 

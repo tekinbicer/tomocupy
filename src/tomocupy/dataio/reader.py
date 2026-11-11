@@ -152,7 +152,12 @@ class Reader():
             center = centeri
 
         # adjust sizes for 16bit processing
+        fp16_crop = 0
         if args.dtype == 'float16':
+            # the columns this crop drops on the left: a center measured on
+            # the cropped projections is this much lower than the same center
+            # measured on the full ones (see find_center.find_center)
+            fp16_crop = (ni-2**int(np.log2(ni)))/2
             center += (2**int(np.log2(ni))-ni)/2
             st_n = (ni-2**int(np.log2(ni)))//2
             end_n = st_n+2**int(np.log2(ni))
@@ -216,6 +221,7 @@ class Reader():
         params.in_dtype = in_dtype
         params.st_n = st_n
         params.end_n = end_n
+        params.fp16_crop = fp16_crop
 
         # full shapes
         params.shape_data_full = (nproj, nz, ni)
@@ -226,8 +232,12 @@ class Reader():
 
         if args.reconstruction_type == 'try':
             # invert shifts for calculations if centeri<ni for double_fov
-            shift_array = np.arange(-args.center_search_width,
-                                    args.center_search_width, args.center_search_step*2**args.binning).astype('float32')/2**args.binning
+            if args.symmetric_center_search:
+                shift_array = np.arange(-args.center_search_width,
+                                        (args.center_search_width+args.center_search_step*2**args.binning), args.center_search_step*2**args.binning).astype('float32')/2**args.binning
+            else:
+                shift_array = np.arange(-args.center_search_width,
+                                        args.center_search_width, args.center_search_step*2**args.binning).astype('float32')/2**args.binning
             save_centers = (params.centeri - shift_array) * \
                 2**args.binning+params.st_n
             if (args.file_type == 'double_fov') and (params.centeri < params.ni//2):
@@ -362,8 +372,14 @@ class Reader():
         """Read a chunk of projections with binning"""
 
         with h5py.File(args.file_name) as fid:
-            d = fid['/exchange/data'][args.start_proj +
-                                      st_proj:args.start_proj+end_proj, st_z:end_z, st_n:end_n]
+            if isinstance(params.ids_proj, np.ndarray):
+                ids = params.ids_proj[st_proj:end_proj]
+                lo, hi = int(ids[0]), int(ids[-1]) + 1
+                d = fid['/exchange/data'][lo:hi, st_z:end_z, st_n:end_n]
+                d = d[ids - lo]
+            else:
+                d = fid['/exchange/data'][args.start_proj +
+                                          st_proj:args.start_proj+end_proj, st_z:end_z, st_n:end_n]
             data[st_proj:end_proj] = utils.downsample(d, args.binning)
 
     def read_flat_dark(self, st_n, end_n):
@@ -418,8 +434,7 @@ class Reader():
         procs = []
         for k in range(nthreads):
             st_proj = k*lchunk
-            end_proj = min((k+1)*lchunk, args.end_proj -
-                           args.start_proj)
+            end_proj = min((k+1)*lchunk, data.shape[0])
             if st_proj >= end_proj:
                 continue
             read_thread = Thread(
